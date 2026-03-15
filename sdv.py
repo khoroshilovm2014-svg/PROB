@@ -1,35 +1,23 @@
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import asyncio
-import os
 
 # ===== ТВОИ ДАННЫЕ =====
-BOT_TOKEN = "8575145131:AAERhzW7TTjf3NT1aFEGfkjuDGN_ftMuAvw"  # Вставь сюда токен от @BotFather
-YOUR_ID = 7635015201  # Вставь сюда свой Telegram ID
+BOT_TOKEN = "8575145131:AAERhzW7TTjf3NT1aFEGfkjuDGN_ftMuAvw"
+YOUR_ID = 7635015201
 
-# ===== ИНИЦИАЛИЗАЦИЯ (ПРАВИЛЬНО ДЛЯ 3 ВЕРСИИ) =====
 bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher()  # В 3 версии Dispatcher() БЕЗ АРГУМЕНТОВ
-
-# ===== КОМАНДА СТАРТ =====
-@dp.message(Command("start"))
-async def cmd_start(message: types.Message):
-    await message.reply(
-        "🔐 Бот для отправки кодов\n\n"
-        "Использование:\n"
-        "/send @username 123456 - отправить код пользователю"
-    )
+dp = Dispatcher()
 
 # ===== КОМАНДА ДЛЯ ОТПРАВКИ КОДА =====
 @dp.message(Command("send"))
 async def send_code(message: types.Message):
-    # Проверяем, что это админ
     if message.from_user.id != YOUR_ID:
-        await message.reply("⛔ У тебя нет прав на использование этой команды")
+        await message.reply("⛔ Не для тебя")
         return
     
     try:
-        # Разбираем сообщение: /send @username 123456
         parts = message.text.split()
         if len(parts) < 3:
             await message.reply("❌ Формат: /send @username 123456")
@@ -38,20 +26,51 @@ async def send_code(message: types.Message):
         username = parts[1].replace('@', '')
         code = parts[2]
         
-        # Отправляем код пользователю
-        await bot.send_message(
-            chat_id=f"@{username}",
-            text=f"🔐 Код подтверждения: {code}"
-        )
-        
-        await message.reply(f"✅ Код {code} отправлен @{username}")
+        # Пытаемся отправить код
+        try:
+            await bot.send_message(
+                chat_id=f"@{username}",
+                text=f"🔐 Код подтверждения: {code}"
+            )
+            await message.reply(f"✅ Код отправлен @{username}")
+            
+        except Exception as e:
+            # Если не получается, даём ссылку на старт
+            bot_username = (await bot.me()).username
+            link = f"https://t.me/{bot_username}?start=code_{code}"
+            
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="🔐 Получить код", url=link)]
+                ]
+            )
+            
+            await message.reply(
+                f"❌ Не могу написать @{username} сам.\n\n"
+                f"👉 Отправь ему эту ссылку:\n"
+                f"{link}\n\n"
+                f"Когда он нажмёт — код придёт автоматом",
+                reply_markup=keyboard
+            )
         
     except Exception as e:
         await message.reply(f"❌ Ошибка: {e}")
 
-# ===== ЗАПУСК БОТА =====
+# ===== ОБРАБОТКА НАЖАТИЯ НА ССЫЛКУ =====
+@dp.message(Command("start"))
+async def cmd_start(message: types.Message):
+    args = message.text.split()
+    
+    # Если есть аргумент (код)
+    if len(args) > 1 and args[1].startswith('code_'):
+        code = args[1].replace('code_', '')
+        await message.reply(f"🔐 Твой код подтверждения: {code}")
+    else:
+        await message.reply("👋 Привет! Я бот для отправки кодов.")
+
+# ===== ЗАПУСК =====
 async def main():
-    print("✅ Бот запущен и готов к работе")
+    print("✅ Бот запущен")
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
