@@ -1,41 +1,58 @@
 from aiogram import Bot, Dispatcher, types
+from aiogram.filters import Command
 import asyncio
+import os
 
 # ===== ТВОИ ДАННЫЕ =====
-BOT_TOKEN = "8575145131:AAERhzW7TTjf3NT1aFEGfkjuDGN_ftMuAvw"
-YOUR_ID = 7635015201  # Твой Telegram ID
+BOT_TOKEN = "8575145131:AAERhzW7TTjf3NT1aFEGfkjuDGN_ftMuAvw"  # Вставь сюда токен от @BotFather
+YOUR_ID = 7635015201  # Вставь сюда свой Telegram ID
 
+# ===== ИНИЦИАЛИЗАЦИЯ (ПРАВИЛЬНО ДЛЯ 3 ВЕРСИИ) =====
 bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher(bot)
+dp = Dispatcher()  # В 3 версии Dispatcher() БЕЗ АРГУМЕНТОВ
 
-# ===== КОМАНДА ДЛЯ ОТПРАВКИ =====
-@dp.message_handler(commands=['send'])
+# ===== КОМАНДА СТАРТ =====
+@dp.message(Command("start"))
+async def cmd_start(message: types.Message):
+    await message.reply(
+        "🔐 Бот для отправки кодов\n\n"
+        "Использование:\n"
+        "/send @username 123456 - отправить код пользователю"
+    )
+
+# ===== КОМАНДА ДЛЯ ОТПРАВКИ КОДА =====
+@dp.message(Command("send"))
 async def send_code(message: types.Message):
-    # Проверяем, что это ты (можно убрать если надо)
+    # Проверяем, что это админ
     if message.from_user.id != YOUR_ID:
-        await message.reply("⛔ Не для тебя")
+        await message.reply("⛔ У тебя нет прав на использование этой команды")
         return
     
     try:
-        # Получаем username и код из сообщения
-        # Формат: /send @durov 123456
+        # Разбираем сообщение: /send @username 123456
         parts = message.text.split()
+        if len(parts) < 3:
+            await message.reply("❌ Формат: /send @username 123456")
+            return
+        
         username = parts[1].replace('@', '')
         code = parts[2]
         
-        # Отправляем сообщение пользователю
+        # Отправляем код пользователю
         await bot.send_message(
-            chat_id=f"@{username}",  # Telegram поймёт
+            chat_id=f"@{username}",
             text=f"🔐 Код подтверждения: {code}"
         )
         
-        await message.reply(f"✅ Код отправлен @{username}")
+        await message.reply(f"✅ Код {code} отправлен @{username}")
         
     except Exception as e:
         await message.reply(f"❌ Ошибка: {e}")
 
-# ===== ЗАПУСК =====
+# ===== ЗАПУСК БОТА =====
+async def main():
+    print("✅ Бот запущен и готов к работе")
+    await dp.start_polling(bot)
+
 if __name__ == '__main__':
-    from aiogram import executor
-    print("✅ Бот запущен")
-    executor.start_polling(dp, skip_updates=True)
+    asyncio.run(main())
